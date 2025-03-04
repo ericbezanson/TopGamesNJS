@@ -1,4 +1,9 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {};
-
-export default nextConfig;
+const nextConfig = {
+    images: {
+      domains: ["images.igdb.com"], // 👈 Allow IGDB images
+    },
+  };
+  
+  export default nextConfig;
+  
