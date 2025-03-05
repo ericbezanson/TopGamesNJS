@@ -1,18 +1,14 @@
-"use client";
 import Image from "next/image";
-import { useEffect, useState } from "react";
 
-export default function Home() {
-  const [games, setGames] = useState([]);
+export default async function Home() {
+  let games = [];
 
-  useEffect(() => {
-    fetch("http://localhost:8080/games") // Calls Go API
-      .then((res) => res.json())
-      .then((data) => setGames(data))
-      .catch((err) => console.error("Error fetching games:", err));
-  }, []);
-
-  console.log("GAMES:", games);
+  try {
+    const res = await fetch("http://localhost:8080/games");
+    games = await res.json();
+  } catch (error) {
+    console.error("Error fetching games:", error);
+  }
 
   return (
     <div className="min-h-screen p-8 sm:p-20 font-sans bg-gray-900 text-white">
