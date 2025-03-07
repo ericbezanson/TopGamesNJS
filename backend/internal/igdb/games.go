@@ -4,22 +4,29 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
 )
 
+type Screenshot struct {
+	ImageID string `json:"image_id"`
+	URL     string `json:"url,omitempty"`
+}
+
 type Game struct {
-	ID               int     `json:"id"`
-	Name             string  `json:"name"`
-	Summary          string  `json:"summary"`
-	Genres           []int   `json:"genres"`
-	Platforms        []int   `json:"platforms"`
-	FirstReleaseDate int64   `json:"first_release_date"`
-	AggregatedRating float64 `json:"aggregated_rating"`
-	Rating           float64 `json:"rating"`
-	TotalRating      float64 `json:"total_rating"`
-	Screenshots      []int   `json:"screenshots"`
+	ID               int          `json:"id"`
+	Name             string       `json:"name"`
+	Summary          string       `json:"summary"`
+	Genres           []int        `json:"genres"`
+	Platforms        []int        `json:"platforms"`
+	FirstReleaseDate int64        `json:"first_release_date"`
+	AggregatedRating float64      `json:"aggregated_rating"`
+	Rating           float64      `json:"rating"`
+	TotalRating      float64      `json:"total_rating"`
+	Screenshots      []Screenshot `json:"screenshots,omitempty"`
 	Cover            struct {
 		ImageID string `json:"image_id"`
 	} `json:"cover"` // 👈 Fix: Capture nested cover.image_id
@@ -35,7 +42,62 @@ type PopularityData struct {
 	PopularityType int     `json:"popularity_type"`
 }
 
+func FetchGameByID(accessToken string, gameID int) (*Game, error) {
+	// Construct the query to fetch a single game's details
+	query := fmt.Sprintf(`fields id, name, summary, genres, platforms, first_release_date, 
+    aggregated_rating, rating, total_rating, screenshots.image_id, cover.image_id, similar_games, slug, url; 
+    where id = %d;`, gameID)
+
+	req, err := http.NewRequest("POST", "https://api.igdb.com/v4/games", bytes.NewBufferString(query))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Client-ID", os.Getenv("TWITCH_CLIENT_ID"))
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
+	// Log the raw response
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println("Raw Response:", string(body))
+
+	// Parse the JSON response
+	var games []Game
+	if err := json.Unmarshal(body, &games); err != nil {
+		return nil, err
+	}
+
+	if len(games) == 0 {
+		return nil, fmt.Errorf("game not found")
+	}
+
+	game := games[0]
+	// Construct the full cover image URL
+	if games[0].Cover.ImageID != "" {
+		games[0].CoverURL = GetCoverImageURL(games[0].Cover.ImageID, "cover_big")
+	}
+	// Construct the full screenshot URLs
+	for i, screenshot := range game.Screenshots {
+		if screenshot.ImageID != "" {
+			game.Screenshots[i].URL = GetImageURL(screenshot.ImageID, "1080p")
+		}
+	}
+	return &games[0], nil
+}
+
 func FetchGames(accessToken string) ([]Game, error) {
+
+	slog.Info("Fetch Games Invoked")
 	// Fetch popular game IDs
 	popularGames, err := FetchMostPlayedGames(accessToken)
 	if err != nil {
@@ -116,5 +178,9 @@ func FetchMostPlayedGames(accessToken string) ([]PopularityData, error) {
 }
 
 func GetCoverImageURL(imageID string, size string) string {
+	return fmt.Sprintf("https://images.igdb.com/igdb/image/upload/t_%s/%s.jpg", size, imageID)
+}
+
+func GetImageURL(imageID, size string) string {
 	return fmt.Sprintf("https://images.igdb.com/igdb/image/upload/t_%s/%s.jpg", size, imageID)
 }
