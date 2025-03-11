@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 
@@ -13,7 +14,9 @@ import (
 func main() {
 	config.LoadEnv() // Load environment variables
 
+	slog.Info("Hello World - App Start")
 	http.HandleFunc("/games", api.GameHandler)
+	http.HandleFunc("/gamedetail/", api.GameDetailHandler)
 
 	port := os.Getenv("PORT")
 	if port == "" {
