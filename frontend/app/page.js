@@ -42,7 +42,7 @@ export default async function Home() {
                     height={250}
                     className="rounded-lg mb-4"
                   />
-                  <h2 className="text-xl text-center font-semibold">{game.name}</h2>
+                  <h2 className="w-[300px] text-xl text-center font-semibold text-ellipsis overflow-hidden whitespace-nowrap">{game.name}</h2>
                 </div>
               </Link>
             ))}
