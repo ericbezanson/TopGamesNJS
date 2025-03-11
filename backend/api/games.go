@@ -16,8 +16,9 @@ func GameHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	games, err := igdb.FetchGames(token)
+	games, err := igdb.FetchTopGames(token)
 	if err != nil {
+		slog.Error("Failed to fetch games")
 		http.Error(w, "Failed to fetch games", http.StatusInternalServerError)
 		return
 	}

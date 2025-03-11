@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log/slog"
 	"net/http"
 	"os"
 	"strings"
@@ -16,7 +15,17 @@ type Screenshot struct {
 	URL     string `json:"url,omitempty"`
 }
 
-type Game struct {
+type TopGame struct {
+	ID       int    `json:"id"`
+	CoverURL string `json:"cover_url"` // Store full image URL
+	Cover    struct {
+		ID      int    `json:"id"`
+		ImageID string `json:"image_id"`
+	} `json:"cover"`
+	Name string `json:"name"`
+}
+
+type GameDetail struct {
 	ID               int          `json:"id"`
 	Name             string       `json:"name"`
 	Summary          string       `json:"summary"`
@@ -42,7 +51,7 @@ type PopularityData struct {
 	PopularityType int     `json:"popularity_type"`
 }
 
-func FetchGameByID(accessToken string, gameID int) (*Game, error) {
+func FetchGameByID(accessToken string, gameID int) (*GameDetail, error) {
 	// Construct the query to fetch a single game's details
 	query := fmt.Sprintf(`fields id, name, summary, genres, platforms, first_release_date, 
     aggregated_rating, rating, total_rating, screenshots.image_id, cover.image_id, similar_games, slug, url; 
@@ -72,7 +81,7 @@ func FetchGameByID(accessToken string, gameID int) (*Game, error) {
 	fmt.Println("Raw Response:", string(body))
 
 	// Parse the JSON response
-	var games []Game
+	var games []GameDetail
 	if err := json.Unmarshal(body, &games); err != nil {
 		return nil, err
 	}
@@ -84,7 +93,7 @@ func FetchGameByID(accessToken string, gameID int) (*Game, error) {
 	game := games[0]
 	// Construct the full cover image URL
 	if games[0].Cover.ImageID != "" {
-		games[0].CoverURL = GetCoverImageURL(games[0].Cover.ImageID, "cover_big")
+		games[0].CoverURL = GetImageURL(games[0].Cover.ImageID, "cover_big")
 	}
 	// Construct the full screenshot URLs
 	for i, screenshot := range game.Screenshots {
@@ -95,9 +104,7 @@ func FetchGameByID(accessToken string, gameID int) (*Game, error) {
 	return &games[0], nil
 }
 
-func FetchGames(accessToken string) ([]Game, error) {
-
-	slog.Info("Fetch Games Invoked")
+func FetchTopGames(accessToken string) ([]TopGame, error) {
 	// Fetch popular game IDs
 	popularGames, err := FetchMostPlayedGames(accessToken)
 	if err != nil {
@@ -112,9 +119,7 @@ func FetchGames(accessToken string) ([]Game, error) {
 	gameIDString := fmt.Sprintf("(%s)", strings.Join(gameIDs, ", "))
 
 	// Request detailed game info including cover.image_id
-	query := fmt.Sprintf(`fields id, name, summary, genres, platforms, first_release_date, 
-        aggregated_rating, rating, total_rating, screenshots, cover.image_id, similar_games, slug, url; 
-        where id = %s;`, gameIDString)
+	query := fmt.Sprintf(`fields id, name, cover.image_id; where id = %s;`, gameIDString)
 
 	req, err := http.NewRequest("POST", "https://api.igdb.com/v4/games", bytes.NewBufferString(query))
 	if err != nil {
@@ -132,15 +137,21 @@ func FetchGames(accessToken string) ([]Game, error) {
 	}
 	defer resp.Body.Close()
 
-	var games []Game
-	if err := json.NewDecoder(resp.Body).Decode(&games); err != nil {
+	// Read and parse the JSON response
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var games []TopGame
+	if err := json.Unmarshal(body, &games); err != nil {
 		return nil, err
 	}
 
 	// Construct full cover image URLs
 	for i, game := range games {
 		if game.Cover.ImageID != "" {
-			games[i].CoverURL = GetCoverImageURL(game.Cover.ImageID, "cover_big")
+			games[i].CoverURL = GetImageURL(game.Cover.ImageID, "cover_big")
 		}
 	}
 
@@ -175,10 +186,6 @@ func FetchMostPlayedGames(accessToken string) ([]PopularityData, error) {
 	}
 
 	return games, nil
-}
-
-func GetCoverImageURL(imageID string, size string) string {
-	return fmt.Sprintf("https://images.igdb.com/igdb/image/upload/t_%s/%s.jpg", size, imageID)
 }
 
 func GetImageURL(imageID, size string) string {
