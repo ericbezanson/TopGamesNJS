@@ -18,7 +18,7 @@ const GameDetails = ({ game }) => {
   return (
     <div className="flex flex-col lg:flex-row items-center lg:items-start">
       {/* Cover Image */}
-      <div className="w-full lg:w-1/3 flex justify-center lg:justify-start mb-6 lg:mb-0">
+      <div className="w-full lg:w-1/5 flex justify-center lg:justify-start mb-6 lg:mb-0">
         <Image
           src={game.cover_url}
           alt={game.name}
@@ -34,7 +34,7 @@ const GameDetails = ({ game }) => {
         <p className="text-gray-400 mb-2">
           Release Date: {formatDate(game.first_release_date)}
         </p>
-        <p className="text-lg text-gray-300">
+        <p className="text-lg text-white">
           {game.summary || 'No summary available.'}
         </p>
       </div>
